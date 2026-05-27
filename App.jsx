@@ -1,0 +1,71 @@
+import React, { useState, useEffect } from 'react';
+
+export default function App() {
+  // 1. 初始化資料，價格預設顯示 "---"
+  const [coinsData, setCoinsData] = useState([
+    { id: 'BTC', name: '比特幣', price: '---' },
+    { id: 'ETH', name: '以太坊', price: '---' },
+    { id: 'BNB', name: '安幣', price: '---' },
+    { id: 'SOL', name: '索拉納', price: '---' },
+    { id: 'XRP', name: '瑞波幣', price: '---' },
+    { id: 'DOGE', name: '狗狗幣', price: '---' },
+    { id: 'NIL', name: '百萬', price: '---' },
+  ]);
+
+  const [currentCoin, setCurrentCoin] = useState('BTC');
+
+  // 2. WebSocket 即時更新價格
+  useEffect(() => {
+    const streams = coinsData.map(c => `${c.id.toLowerCase()}usdt@ticker`).join('/');
+    const ws = new WebSocket(`wss://stream.binance.com:9443/stream?streams=${streams}`);
+
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      const data = msg.data;
+      const price = parseFloat(data.c).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      
+      setCoinsData(prev => prev.map(coin => 
+        data.s.toLowerCase().includes(coin.id.toLowerCase()) 
+        ? { ...coin, price: price } : coin
+      ));
+    };
+    return () => ws.close();
+  }, []);
+
+  // TradingView 網址
+  const kLineUrl = `https://s.tradingview.com/widgetembed/?symbol=BINANCE:${currentCoin}USDT&interval=60&theme=dark&style=1&toolbarbg=f1f3f6&studies=%5B%5D&locale=zh_TW`;
+  const volumeUrl = `https://s.tradingview.com/widgetembed/?symbol=BINANCE:${currentCoin}USDT&interval=60&theme=dark&style=3&toolbarbg=f1f3f6&studies=%5B%22Volume%40tv-basicstudies%22%5D&locale=zh_TW`;
+
+  return (
+    <div style={{ backgroundColor: '#111214', color: '#fff', padding: '20px', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+      <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>🛸 加密貨幣熱門榜行情看盤面板</h2>
+      
+      {/* 上方選幣卡片區 - 確保 price 變數被正確渲染 */}
+      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '20px', flexWrap: 'wrap' }}>
+        {coinsData.map(coin => (
+          <div key={coin.id} onClick={() => setCurrentCoin(coin.id)} 
+               style={{ 
+                 padding: '12px', 
+                 background: currentCoin === coin.id ? '#2b2f36' : '#1e2026', 
+                 border: currentCoin === coin.id ? '1px solid #f0b90b' : '1px solid #333', 
+                 cursor: 'pointer', 
+                 borderRadius: '8px',
+                 minWidth: '100px',
+                 textAlign: 'center'
+               }}>
+            <div style={{ fontSize: '13px', color: '#aaa' }}>{coin.name} ({coin.id})</div>
+            {/* 🎯 這裡直接顯示即時價格 */}
+            <div style={{ color: '#f0b90b', fontWeight: 'bold', marginTop: '5px' }}>{coin.price}</div>
+            <div style={{ fontSize: '10px', color: '#666' }}>USD</div>
+          </div>
+        ))}
+      </div>
+
+      {/* 圖表區 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', border: '1px solid #333', borderRadius: '8px', overflow: 'hidden' }}>
+        <iframe src={kLineUrl} style={{ width: '100%', height: '400px', border: 'none' }} title="K-Line" />
+        <iframe src={volumeUrl} style={{ width: '100%', height: '150px', border: 'none' }} title="Volume" />
+      </div>
+    </div>
+  );
+}
